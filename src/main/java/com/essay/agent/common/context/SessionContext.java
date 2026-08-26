@@ -19,6 +19,10 @@ public class SessionContext {
         return (String) get("sessionId");
     }
 
+    public static void setSessionId(String sessionId) {
+        set("sessionId", sessionId);
+    }
+
     public static void clear() {
         context.get().clear();
     }
