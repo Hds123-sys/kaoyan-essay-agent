@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: essay-correction-agent
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/essay_agent?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 2s
+
+  # Claude API 配置
+  claude:
+    api-key: ${CLAUDE_API_KEY:}
+    base-url: https://api.anthropic.com
+    model: claude-3-5-sonnet-20241022
+    timeout-seconds: 30
+    max-tokens: 2048
+
+  # 百度 OCR 配置
+  baidu:
+    ocr:
+      api-key: ${BAIDU_OCR_API_KEY:}
+      secret-key: ${BAIDU_OCR_SECRET_KEY:}
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.essay.agent.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.essay.agent: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/essay-correction-agent.log
+    max-size: 10MB
+    max-history: 7
+
+# 服务器配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
