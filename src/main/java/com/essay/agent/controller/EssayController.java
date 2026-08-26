@@ -7,6 +7,8 @@ import com.essay.agent.common.util.LanguageDetector;
 import com.essay.agent.common.util.SensitiveWordFilter;
 import com.essay.agent.common.util.WordCounter;
 import com.essay.agent.model.EssayType;
+import com.essay.agent.model.ReferenceResult;
+import com.essay.agent.model.dto.request.EssayReferenceRequest;
 import com.essay.agent.model.dto.request.EssayCorrectRequest;
 import com.essay.agent.model.dto.response.ApiResponse;
 import com.essay.agent.model.dto.response.EssayCorrectResponse;
@@ -84,5 +86,32 @@ public class EssayController {
                 sessionId, wordCount, essayType);
 
         return ApiResponse.success(response, meta);
+    }
+
+    @PostMapping("/reference")
+    public ApiResponse<ReferenceResult> reference(@Valid @RequestBody EssayReferenceRequest request) {
+        String sessionId = SessionContext.getSessionId();
+        if (sessionId == null) {
+            throw new BusinessException(ErrorCodeConstants.SESSION_INVALID, "会话无效");
+        }
+
+        String topic = request.getTopic().trim();
+
+        if (topic.length() < 5) {
+            throw new BusinessException(ErrorCodeConstants.ESSAY_EMPTY, "题目内容过短，请至少输入5个字符");
+        }
+
+        if (request.getEssayType() == null) {
+            throw new BusinessException(ErrorCodeConstants.ESSAY_TYPE_REQUIRED, "作文类型不能为空");
+        }
+
+        request.setSessionId(sessionId);
+
+        ReferenceResult result = agentDispatcher.generateReference(request);
+
+        log.info("Reference generation completed successfully. sessionId={}, essayType={}, degraded={}",
+                sessionId, request.getEssayType(), result.isDegraded());
+
+        return ApiResponse.success(result);
     }
 }
