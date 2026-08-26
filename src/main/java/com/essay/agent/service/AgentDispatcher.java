@@ -136,8 +136,8 @@ public class AgentDispatcher {
 
     public TopicGenerateResult generateTopic(TopicGenerateRequest request) {
         String sessionId = request.getSessionId();
-        String essayTypeStr = request.getEssayType();
-        EssayType essayType = EssayType.valueOf(essayTypeStr.toUpperCase());
+        EssayType essayType = request.getEssayType();
+        String essayTypeStr = essayType.name();
 
         long startTime = System.currentTimeMillis();
 
@@ -193,8 +193,8 @@ public class AgentDispatcher {
     public ReferenceResult generateReference(EssayReferenceRequest request) {
         String sessionId = request.getSessionId();
         String topic = request.getTopic();
-        String essayTypeStr = request.getEssayType();
-        EssayType essayType = EssayType.valueOf(essayTypeStr.toUpperCase());
+        EssayType essayType = request.getEssayType();
+        String essayTypeStr = essayType.name();
 
         long startTime = System.currentTimeMillis();
 
