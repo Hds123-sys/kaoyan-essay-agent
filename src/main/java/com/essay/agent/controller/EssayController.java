@@ -8,11 +8,14 @@ import com.essay.agent.common.util.SensitiveWordFilter;
 import com.essay.agent.common.util.WordCounter;
 import com.essay.agent.model.EssayType;
 import com.essay.agent.model.ReferenceResult;
+import com.essay.agent.entity.EssayRecord;
+import com.essay.agent.model.dto.request.ReCorrectRequest;
 import com.essay.agent.model.dto.request.EssayReferenceRequest;
 import com.essay.agent.model.dto.request.EssayCorrectRequest;
 import com.essay.agent.model.dto.response.ApiResponse;
 import com.essay.agent.model.dto.response.EssayCorrectResponse;
 import com.essay.agent.service.AgentDispatcher;
+import com.essay.agent.service.HistoryService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,9 @@ public class EssayController {
 
     @Autowired
     private AgentDispatcher agentDispatcher;
+
+    @Autowired
+    private HistoryService historyService;
 
     @PostMapping("/correct")
     public ApiResponse<EssayCorrectResponse> correct(@Valid @RequestBody EssayCorrectRequest request) {
@@ -113,5 +119,41 @@ public class EssayController {
                 sessionId, request.getEssayType(), result.isDegraded());
 
         return ApiResponse.success(result);
+    }
+
+    @PostMapping("/re-correct")
+    public ApiResponse<EssayCorrectResponse> reCorrect(@Valid @RequestBody ReCorrectRequest request) {
+        String sessionId = SessionContext.getSessionId();
+        if (sessionId == null) {
+            throw new BusinessException(ErrorCodeConstants.SESSION_INVALID, "会话无效");
+        }
+
+        EssayRecord originalRecord = historyService.getById(request.getRecordId());
+        if (originalRecord == null) {
+            throw new BusinessException(ErrorCodeConstants.SESSION_INVALID, "原记录不存在");
+        }
+
+        if (!originalRecord.getSessionId().equals(sessionId)) {
+            throw new BusinessException(ErrorCodeConstants.UNAUTHORIZED_ACCESS, "越权访问");
+        }
+
+        EssayCorrectRequest correctRequest = new EssayCorrectRequest();
+        correctRequest.setSessionId(sessionId);
+        correctRequest.setTopic(request.getTopic() != null ? request.getTopic() : originalRecord.getTopic());
+        correctRequest.setUserEssay(request.getUserEssay() != null ? request.getUserEssay() : originalRecord.getUserEssay());
+        correctRequest.setEssayType(request.getEssayType() != null ? request.getEssayType() : EssayType.valueOf(originalRecord.getEssayType()));
+        correctRequest.setImageUrl(null);
+        correctRequest.setIsHeavilyEdited(true);
+
+        EssayCorrectResponse response = agentDispatcher.correct(correctRequest);
+
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("originalRecordId", request.getRecordId());
+        meta.put("isReCorrect", true);
+
+        log.info("Re-correction completed. sessionId={}, originalRecordId={}, newResult={}",
+                sessionId, request.getRecordId(), response.getResult().isDegraded() ? "degraded" : "success");
+
+        return ApiResponse.success(response, meta);
     }
 }
