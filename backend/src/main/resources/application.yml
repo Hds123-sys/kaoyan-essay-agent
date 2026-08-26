@@ -6,6 +6,11 @@ spring:
     url: jdbc:mysql://localhost:3306/essay_agent?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: root
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
   data:
     redis:
       host: localhost
@@ -19,10 +24,10 @@ spring:
           min-idle: 5
           max-wait: 2s
 
-  # Claude API 配置
+  # Agnes AI API 配置
   claude:
-    api-key: ${CLAUDE_API_KEY:}
-    base-url: https://api.anthropic.com
+    api-key: ${CLAUDE_API_KEY:sk-jCisW3Hm1uwtJSJgK2Olnse9KNuCY0TqxbGs7I5vjc4UKmMO}
+    base-url: https://apihub.agnes-ai.com
     model: claude-3-5-sonnet-20241022
     timeout-seconds: 30
     max-tokens: 2048
