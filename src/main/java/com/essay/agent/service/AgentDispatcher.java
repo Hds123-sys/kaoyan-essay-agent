@@ -46,8 +46,8 @@ public class AgentDispatcher {
 
     public EssayCorrectResponse correct(EssayCorrectRequest request) {
         String sessionId = request.getSessionId();
-        String essayTypeStr = request.getEssayType();
-        EssayType essayType = EssayType.valueOf(essayTypeStr.toUpperCase());
+        EssayType essayType = request.getEssayType();
+        String essayTypeStr = essayType.name();
 
         long startTime = System.currentTimeMillis();
         int iterationCount = 0;
@@ -137,6 +137,7 @@ public class AgentDispatcher {
     public TopicGenerateResult generateTopic(TopicGenerateRequest request) {
         String sessionId = request.getSessionId();
         String essayTypeStr = request.getEssayType();
+        EssayType essayType = EssayType.valueOf(essayTypeStr.toUpperCase());
 
         long startTime = System.currentTimeMillis();
 
@@ -145,7 +146,7 @@ public class AgentDispatcher {
             String version = "1.0";
 
             Map<String, Object> variables = new HashMap<>();
-            variables.put("essay_type", essayTypeStr);
+            variables.put("essay_type", essayType.getDisplayName());
 
             String resolvedPrompt = templateService.resolveTemplate(templateId, version, variables);
 
@@ -179,7 +180,7 @@ public class AgentDispatcher {
             degradedResult.setTopicDescription("题目生成失败");
             degradedResult.setWritingRequirements("");
             degradedResult.setWordCount(0);
-            degradedResult.setDifficulty("未知");
+            degradedResult.setDifficulty(essayType.getDisplayName());
 
             long durationMs = System.currentTimeMillis() - startTime;
             log.info("Topic generation failed (degraded). sessionId={}, taskType=TOPIC, durationMs={}, success=false",
@@ -193,6 +194,7 @@ public class AgentDispatcher {
         String sessionId = request.getSessionId();
         String topic = request.getTopic();
         String essayTypeStr = request.getEssayType();
+        EssayType essayType = EssayType.valueOf(essayTypeStr.toUpperCase());
 
         long startTime = System.currentTimeMillis();
 
@@ -201,7 +203,7 @@ public class AgentDispatcher {
             String version = "1.0";
 
             Map<String, Object> variables = new HashMap<>();
-            variables.put("essay_type", essayTypeStr);
+            variables.put("essay_type", essayType.getDisplayName());
             variables.put("topic", topic);
 
             String resolvedPrompt = templateService.resolveTemplate(templateId, version, variables);
