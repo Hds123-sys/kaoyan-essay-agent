@@ -1,0 +1,723 @@
+openapi: 3.0.3
+info:
+  title: 考研英语作文批改自研 Agent API
+  description: |
+    面向考研备考学生的英语作文辅助批改工具 API。
+    会话机制：前端生成 UUID v4 sessionId，通过 X-Session-Id 请求头传递，后端不主动创建会话。
+    所有响应统一包裹在 ApiResponse 结构中（code/message/data/meta）。
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发环境
+
+tags:
+  - name: topic
+    description: 模拟题目生成
+  - name: essay
+    description: 作文批改与范文
+  - name: ocr
+    description: 图片 OCR 识别
+  - name: history
+    description: 历史记录
+  - name: session
+    description: 会话管理
+  - name: report
+    description: 报告导出
+
+components:
+  securitySchemes: {}
+
+  parameters:
+    XSessionId:
+      name: X-Session-Id
+      in: header
+      required: true
+      description: 前端生成的 UUID v4 会话标识
+      schema:
+        type: string
+        format: uuid
+
+  headers:
+    XSessionStatus:
+      description: 会话状态，active 或 expired
+      schema:
+        type: string
+        enum: [active, expired]
+
+  schemas:
+    EssayType:
+      type: string
+      enum: [EN1_PICTURE, EN2_CHART, LETTER]
+      description: |
+        EN1_PICTURE=英语一图画大作文
+        EN2_CHART=英语二图表大作文
+        LETTER=应用文/小作文（英语一二通用）
+
+    ApiResponse:
+      type: object
+      description: 统一响应体
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 0=成功，非0=错误码
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          description: 业务数据
+        meta:
+          type: object
+          description: 元信息
+          properties:
+            template_id:
+              type: string
+              description: 本次使用的Prompt模板ID
+            template_version:
+              type: string
+              description: 本次使用的Prompt模板版本
+            summary_degraded:
+              type: boolean
+              description: 摘要生成是否触发降级
+            iteration_count:
+              type: integer
+              description: 当前会话已用迭代轮次
+
+    ScoreBreakdown:
+      type: object
+      description: 分项得分
+      properties:
+        content:
+          type: integer
+          description: 内容完整性（0-5）
+        language:
+          type: integer
+          description: 语言准确性（0-5）
+        vocabulary:
+          type: integer
+          description: 词汇多样性（0-5）
+        structure:
+          type: integer
+          description: 句式丰富度（0-5）
+
+    ErrorItem:
+      type: object
+      description: 错误项
+      properties:
+        original:
+          type: string
+          description: 原文错误片段
+        corrected:
+          type: string
+          description: 修改后
+        reason:
+          type: string
+          description: 错误原因
+        type:
+          type: string
+          enum: [语法, 用词, 拼写]
+          description: 错误类型
+
+    CorrectionResult:
+      type: object
+      description: 批改结果（与Agent详细设计EssayCorrectResult对齐）
+      properties:
+        total_score:
+          type: integer
+          description: 总分（大作文0-20，小作文0-10）
+        breakdown:
+          $ref: '#/components/schemas/ScoreBreakdown'
+        errors:
+          type: array
+          description: 语法/用词错误列表
+          items:
+            $ref: '#/components/schemas/ErrorItem'
+        weaknesses:
+          type: string
+          description: 整体不足与修改建议
+        polished_essay:
+          type: string
+          description: 润色优化后的全文
+        advanced_phrases:
+          type: array
+          description: 可复用高级句型与表达
+          items:
+            type: string
+        degraded:
+          type: boolean
+          description: 是否为降级结果（格式解析失败时为true）
+
+    TopicGenerateResult:
+      type: object
+      description: 随机出题结果
+      properties:
+        topic_description:
+          type: string
+          description: 题目描述（图画/图表/书信场景）
+        writing_requirements:
+          type: string
+          description: 写作要求
+        word_count:
+          type: integer
+          description: 词数要求
+        difficulty:
+          type: string
+          enum: [简单, 中等, 困难]
+          description: 题目难度
+
+    ReferenceResult:
+      type: object
+      description: 范文生成结果
+      properties:
+        reference_essay:
+          type: string
+          description: 参考范文全文
+        word_count:
+          type: integer
+          description: 范文词数
+        highlights:
+          type: array
+          description: 亮点表达
+          items:
+            type: string
+
+    OcrWord:
+      type: object
+      description: OCR单词级识别结果
+      properties:
+        word:
+          type: string
+          description: 识别出的单词
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 置信度（0.0-1.0），<0.6建议前端高亮提示
+
+    OcrResult:
+      type: object
+      description: OCR识别结果
+      properties:
+        ocr_text:
+          type: string
+          description: 识别出的全文文本
+        image_url:
+          type: string
+          description: 图片访问地址（7天有效）
+        average_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 平均置信度
+        words:
+          type: array
+          nullable: true
+          description: 单词级识别结果（低置信度<0.6前端高亮）
+          items:
+            $ref: '#/components/schemas/OcrWord'
+        warning:
+          type: string
+          nullable: true
+          description: 语言检测/长度校验提示（仅提示不拦截，如"识别结果可能非英语内容"）
+
+    HistoryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        session_id:
+          type: string
+          format: uuid
+        essay_type:
+          $ref: '#/components/schemas/EssayType'
+        topic:
+          type: string
+        user_essay:
+          type: string
+        result_json:
+          type: string
+          description: 批改结果JSON字符串
+        image_url:
+          type: string
+          nullable: true
+        template_id:
+          type: string
+        template_version:
+          type: string
+        user_disputed:
+          type: boolean
+          description: 争议标注（v1.0预留，默认false）
+        is_heavily_edited:
+          type: boolean
+          description: OCR校对改动超过30%标记
+        created_at:
+          type: string
+          format: date-time
+
+    PageResult:
+      type: object
+      description: 分页结果
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryRecord'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: |
+            错误码：
+            40001=sessionId格式非法
+            40002=作文内容为空或过短
+            40003=非英语作文
+            40004=作文超过800词
+            40005=含敏感词或非法内容
+            40006=作文类型未选择
+            40301=越权访问非本会话记录
+            42901=请求过于频繁
+            42902=有批改任务正在处理
+            50001=Claude API调用失败
+            50002=OCR识别失败
+            50003=图片上传失败
+        message:
+          type: string
+
+  responses:
+    Success:
+      description: 成功
+      headers:
+        X-Session-Status:
+          $ref: '#/components/headers/XSessionStatus'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    BadRequest:
+      description: 参数校验失败
+      headers:
+        X-Session-Status:
+          $ref: '#/components/headers/XSessionStatus'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    example: 40001
+    Forbidden:
+      description: 越权访问
+      headers:
+        X-Session-Status:
+          $ref: '#/components/headers/XSessionStatus'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    example: 40301
+    RateLimited:
+      description: 触发限流/并发锁
+      headers:
+        X-Session-Status:
+          $ref: '#/components/headers/XSessionStatus'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    example: 42901
+    ServerError:
+      description: 服务端错误
+      headers:
+        X-Session-Status:
+          $ref: '#/components/headers/XSessionStatus'
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  code:
+                    example: 50001
+
+paths:
+  /api/topic/generate:
+    post:
+      tags: [topic]
+      summary: 生成模拟题（调用大模型，计入限流）
+      description: 高Temperature=1.0，生成全新模拟题，非历年真题
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [essay_type]
+              properties:
+                essay_type:
+                  $ref: '#/components/schemas/EssayType'
+      responses:
+        '200':
+          description: 生成成功，data为TopicGenerateResult
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TopicGenerateResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/essay/reference:
+    post:
+      tags: [essay]
+      summary: 自定义题目生成范文（调用大模型，计入限流）
+      description: 低Temperature=0.6，生成符合考研评分标准的参考范文
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic, essay_type]
+              properties:
+                topic:
+                  type: string
+                  description: 作文题干，去首尾空白后长度≥5
+                essay_type:
+                  $ref: '#/components/schemas/EssayType'
+      responses:
+        '200':
+          description: 生成成功，data为ReferenceResult
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReferenceResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/essay/correct:
+    post:
+      tags: [essay]
+      summary: 作文批改（调用大模型，计入限流）
+      description: |
+        文本输入或OCR校对后提交批改。
+        作文类型优先使用传入的essay_type，未传则继承会话默认类型，会话无类型时返回40006。
+        题目优先使用传入的topic，未传则使用会话中当前题目，会话无题目时需传入topic。
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_essay]
+              properties:
+                user_essay:
+                  type: string
+                  description: 作文原文，去首尾空白后长度≥10字符且≤800词，英语占比≥80%
+                essay_type:
+                  $ref: '#/components/schemas/EssayType'
+                  description: 可选，继承会话默认类型；会话无类型时必填
+                topic:
+                  type: string
+                  nullable: true
+                  description: 可选，作文题目；会话中无当前题目时必填
+                image_url:
+                  type: string
+                  nullable: true
+                  description: OCR图片地址（文本输入时为null）
+                is_heavily_edited:
+                  type: boolean
+                  default: false
+                  description: OCR校对改动超过30%时为true
+      responses:
+        '200':
+          description: 批改成功，data为CorrectionResult
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CorrectionResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/essay/re-correct:
+    post:
+      tags: [essay]
+      summary: 历史记录重新批改（调用大模型，计入限流）
+      description: |
+        两种模式：
+        - 原样重批：仅传 record_id，复用原记录的题目、原文、类型
+        - 修改后重批：传入修改后的 topic/user_essay/essay_type，覆盖原记录值
+        不继承原作文的迭代上下文（争议标注等作文级数据重置），不清空session级词汇集，生成全新记录。
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [record_id]
+              properties:
+                record_id:
+                  type: integer
+                  format: int64
+                  description: 原记录ID（必须属于当前会话，否则403）
+                topic:
+                  type: string
+                  nullable: true
+                  description: 修改后的题目，不传则复用原记录
+                user_essay:
+                  type: string
+                  nullable: true
+                  description: 修改后的原文，不传则复用原记录
+                essay_type:
+                  $ref: '#/components/schemas/EssayType'
+                  nullable: true
+                  description: 修改后的类型，不传则复用原记录
+      responses:
+        '200':
+          description: 重新批改成功，生成全新历史记录，data含new_record_id和result
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          new_record_id:
+                            type: integer
+                            format: int64
+                          result:
+                            $ref: '#/components/schemas/CorrectionResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/ocr/upload:
+    post:
+      tags: [ocr]
+      summary: 图片上传 + OCR 识别（不调用大模型，不计入限流）
+      description: |
+        返回识别文本及单词级置信度；前端校对框中置信度<0.6的单词高亮提示用户重点核对。
+        OCR阶段的语言检测/长度校验仅提示不拦截，提交批改时才执行拦截式校验。
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: jpg/png/jpeg，单张≤10MB，宽度建议≥1000px
+      responses:
+        '200':
+          description: 识别成功，data为OcrResult
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/OcrResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /api/history:
+    get:
+      tags: [history]
+      summary: 分页查询历史记录（不校验会话状态，不计入限流）
+      description: 仅查询当前sessionId的记录，按创建时间倒序
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: 查询成功，data为PageResult
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PageResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/history/{id}:
+    get:
+      tags: [history]
+      summary: 查询单条历史记录详情（不计入限流）
+      description: 仅允许查询当前sessionId所属的记录，否则返回403
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 查询成功，data为HistoryRecord
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HistoryRecord'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/session/context:
+    delete:
+      tags: [session]
+      summary: 清空当前会话上下文（不计入限流）
+      description: |
+        仅清除Redis中的对话轮次记录（释放Token），不影响已持久化的MySQL历史记录。
+        同时清除template:lock、vocab等会话关联数据。
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      responses:
+        '200':
+          description: 清空成功
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/report/sanitize:
+    post:
+      tags: [report]
+      summary: Markdown报告净化（不计入限流，不调用大模型）
+      description: |
+        前端基于JSON批改结果渲染Markdown后，调用此接口做XSS净化（过滤javascript:等危险协议），返回安全的Markdown文本。
+        报告渲染由前端完成，后端仅做净化处理，不做JSON→Markdown转换。
+      parameters:
+        - $ref: '#/components/parameters/XSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [markdown]
+              properties:
+                markdown:
+                  type: string
+                  description: 前端渲染好的Markdown原文
+      responses:
+        '200':
+          description: 净化成功，data.sanitized_markdown为净化后的文本
+          headers:
+            X-Session-Status:
+              $ref: '#/components/headers/XSessionStatus'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          sanitized_markdown:
+                            type: string
+        '400': { $ref: '#/components/responses/BadRequest' }

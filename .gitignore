@@ -1,0 +1,23 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# 日志
+*.log
+logs/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
+application-local.yml
