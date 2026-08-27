@@ -44,6 +44,37 @@ public class LanguageDetector {
         return englishRatio(text) >= ENGLISH_RATIO_THRESHOLD;
     }
 
+    /**
+     * 检测语言，返回语言代码
+     * @return "en" for English, "zh" for Chinese, "unknown" for others
+     */
+    public static String detect(String text) {
+        if (text == null || text.isEmpty()) {
+            return "unknown";
+        }
+
+        if (isEnglishEssay(text)) {
+            return "en";
+        }
+
+        int chineseChars = 0;
+        for (char c : text.toCharArray()) {
+            if (isChineseCharacter(c)) {
+                chineseChars++;
+            }
+        }
+
+        if (chineseChars > text.length() * 0.5) {
+            return "zh";
+        }
+
+        return "unknown";
+    }
+
+    private static boolean isChineseCharacter(char c) {
+        return (c >= '\u4E00' && c <= '\u9FFF');
+    }
+
     private static boolean isEnglishLetter(char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }

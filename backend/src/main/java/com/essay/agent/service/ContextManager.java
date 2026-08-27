@@ -171,6 +171,25 @@ public class ContextManager {
         log.info("Context cleared - sessionId: {}", sessionId);
     }
 
+    public void addMessage(String sessionId, Message message) {
+        String sessionKey = RedisKeyConstants.buildSessionKey(sessionId);
+        redisUtil.rightPush(sessionKey, message);
+        redisUtil.expire(sessionKey, SESSION_TTL_DAYS, TimeUnit.DAYS);
+    }
+
+    public List<Message> getMessages(String sessionId, int maxTokens) {
+        String sessionKey = RedisKeyConstants.buildSessionKey(sessionId);
+        List<Object> messageObjects = redisUtil.range(sessionKey, 0, -1);
+
+        if (messageObjects == null || messageObjects.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return messageObjects.stream()
+                .map(obj -> (Message) obj)
+                .collect(Collectors.toList());
+    }
+
     public int getRoundCount(String sessionId) {
         String sessionKey = RedisKeyConstants.buildSessionKey(sessionId);
         List<Object> messages = redisUtil.range(sessionKey, 0, -1);

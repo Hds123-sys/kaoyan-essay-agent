@@ -17,7 +17,9 @@ public class TopicGenerateResult {
 
     private Integer wordCount;
 
-    private String difficulty;
+    private Integer difficulty;
+
+    private String difficultyLevel;
 
     private boolean degraded;
 

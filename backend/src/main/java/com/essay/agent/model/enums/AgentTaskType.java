@@ -7,6 +7,7 @@ public enum AgentTaskType {
 
     TOPIC("topic_generate"),
     REFERENCE("essay_reference"),
+    CORRECT("essay_correct"),
     CORRECT_MAJOR("essay_correct_major"),
     CORRECT_LETTER("essay_correct_letter");
 

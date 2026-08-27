@@ -175,4 +175,11 @@ public class PromptTemplateService {
                 .build();
     }
 
+    public String getCurrentVersion() {
+        return "v1.0";
+    }
+
+    public String getSystemPrompt(AgentTaskType taskType) {
+        return "你是一个专业的考研英语作文批改助手，请对学生提交的英语作文进行详细的批改和点评。";
+    }
 }
