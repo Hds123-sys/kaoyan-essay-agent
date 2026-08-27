@@ -20,6 +20,7 @@ public class MarkdownSanitizer {
         result = sanitizeImgSrc(result);
         result = removeDangerousTags(result);
         result = removeEventHandlers(result);
+        result = removeDangerousStyles(result);
 
         return result;
     }
@@ -54,6 +55,13 @@ public class MarkdownSanitizer {
         return markdown.replaceAll("\\s+on\\w+\\s*=\\s*\"[^\"]*\"", "")
                 .replaceAll("\\s+on\\w+\\s*=\\s*'[^']*'", "")
                 .replaceAll("\\s+on\\w+\\s*=\\s*[^\\s>]+", "");
+    }
+
+    private static String removeDangerousStyles(String markdown) {
+        return markdown.replaceAll("(?i)style\\s*=\\s*\"[^\"]*expression\\s*\\([^)]*\\)[^\"]*\"", "")
+                .replaceAll("(?i)style\\s*=\\s*'[^']*expression\\s*\\([^)]*\\)[^']*'", "")
+                .replaceAll("(?i)style\\s*=\\s*\"[^\"]*url\\s*\\(\\s*javascript:[^)]*\\)[^\"]*\"", "")
+                .replaceAll("(?i)style\\s*=\\s*'[^']*url\\s*\\(\\s*javascript:[^)]*\\)[^']*'", "");
     }
 
 }
