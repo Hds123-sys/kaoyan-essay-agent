@@ -1,13 +1,11 @@
 import request from './request'
 
-export const generateTopic = (essayType, difficulty, keywords) => {
+export const generateTopic = (essayType) => {
   return request({
-    url: '/generate-topic',
+    url: '/topic/generate',
     method: 'post',
     data: {
-      essayType,
-      difficulty,
-      keywords
+      essay_type: essayType
     }
   })
 }

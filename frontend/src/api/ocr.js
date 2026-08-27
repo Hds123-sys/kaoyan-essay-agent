@@ -1,9 +1,15 @@
 import request from './request'
 
-export const ocr = (imageUrl) => {
+export const upload = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
   return request({
-    url: '/ocr',
+    url: '/ocr/upload',
     method: 'post',
-    data: { imageUrl }
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
 }

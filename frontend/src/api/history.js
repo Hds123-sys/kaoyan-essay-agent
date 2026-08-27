@@ -1,6 +1,6 @@
 import request from './request'
 
-export const getHistoryList = (page = 1, size = 10) => {
+export const getHistoryList = (page = 1, size = 20) => {
   return request({
     url: '/history',
     method: 'get',

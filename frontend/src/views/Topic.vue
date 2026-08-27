@@ -1,106 +1,179 @@
 <template>
   <div class="topic-page">
-    <el-card>
-      <h2>随机出题</h2>
+    <el-card shadow="hover">
+      <template #header>
+        <span>随机出题</span>
+      </template>
+
       <el-form :model="formData" label-width="100px">
         <el-form-item label="作文类型">
-          <el-select v-model="formData.essayType" placeholder="选择作文类型">
+          <el-select v-model="formData.essayType" placeholder="选择作文类型" style="width: 100%;">
             <el-option label="英语一图画作文" value="EN1_PICTURE" />
-            <el-option label="英语一图表作文" value="EN1_CHART" />
             <el-option label="英语二图表作文" value="EN2_CHART" />
-            <el-option label="小作文-书信" value="LETTER" />
-            <el-option label="小作文-通知" value="NOTICE" />
+            <el-option label="应用文/小作文" value="LETTER" />
           </el-select>
         </el-form-item>
-        <el-form-item label="难度">
-          <el-select v-model="formData.difficulty" placeholder="选择难度">
-            <el-option label="简单" value="简单" />
-            <el-option label="中等" value="中等" />
-            <el-option label="困难" value="困难" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="formData.keywords" placeholder="输入关键词，多个关键词用逗号分隔" />
-        </el-form-item>
+
         <el-form-item>
-          <el-button type="primary" @click="handleGenerate" :loading="loading">
-            生成题目
+          <el-button
+            type="primary"
+            @click="handleGenerate"
+            :loading="loading"
+            style="width: 100%;"
+          >
+            {{ loading ? '生成中...' : '生成题目' }}
           </el-button>
         </el-form-item>
       </el-form>
 
-      <div v-if="topics.length > 0" class="topics-section">
-        <h3>生成的题目</h3>
-        <el-card v-for="(topic, index) in topics" :key="index" class="topic-card">
-          <h4>题目 {{ index + 1 }}</h4>
-          <p><strong>题目描述：</strong>{{ topic.topicDescription }}</p>
-          <p><strong>写作要求：</strong>{{ topic.writingRequirements }}</p>
-          <p><strong>词数要求：</strong>{{ topic.wordCount }}</p>
-          <p><strong>难度：</strong>{{ topic.difficulty }}</p>
-        </el-card>
+      <div v-if="topicResult" class="topic-result">
+        <el-divider content-position="left">生成的题目</el-divider>
+
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="题目描述">
+            <div class="topic-description">{{ topicResult.topic_description }}</div>
+          </el-descriptions-item>
+          <el-descriptions-item label="写作要求">
+            <div class="writing-requirements">{{ topicResult.writing_requirements }}</div>
+          </el-descriptions-item>
+          <el-descriptions-item label="词数要求">
+            {{ topicResult.word_count }} 词
+          </el-descriptions-item>
+          <el-descriptions-item label="难度">
+            <el-tag :type="getDifficultyType(topicResult.difficulty)">
+              {{ topicResult.difficulty }}
+            </el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="result-actions">
+          <el-button
+            type="success"
+            @click="handleGoToWrite"
+            :icon="Edit"
+          >
+            去写作文
+          </el-button>
+          <el-button
+            @click="handleCopyTopic"
+            :icon="CopyDocument"
+          >
+            复制题目
+          </el-button>
+          <el-button
+            type="warning"
+            @click="handleRegenerate"
+            :loading="loading"
+            :icon="Refresh"
+          >
+            重新生成
+          </el-button>
+        </div>
       </div>
+
+      <el-empty v-else description="点击生成按钮获取模拟题目" />
     </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { generateTopic } from '@/api/topic'
+import { Edit, CopyDocument, Refresh } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const loading = ref(false)
 const formData = ref({
-  essayType: 'EN1_PICTURE',
-  difficulty: '中等',
-  keywords: ''
+  essayType: 'EN1_PICTURE'
 })
 
-const topics = ref([])
+const topicResult = ref(null)
 
+// 生成题目
 const handleGenerate = async () => {
   loading.value = true
   try {
-    const result = await generateTopic(formData.value.essayType, formData.value.difficulty, formData.value.keywords)
-    topics.value = result
-    ElMessage.success(`成功生成 ${result.length} 个题目`)
+    const result = await generateTopic(formData.value.essayType)
+    topicResult.value = result
+    ElMessage.success('题目生成成功')
   } catch (error) {
     console.error('生成题目失败', error)
+    ElMessage.error('生成题目失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
+}
+
+// 去写作文（跳转到批改页面）
+const handleGoToWrite = () => {
+  if (!topicResult.value) return
+
+  const fullTopic = `题目描述：${topicResult.value.topic_description}\n写作要求：${topicResult.value.writing_requirements}`
+
+  router.push({
+    path: '/correct',
+    query: {
+      topic: fullTopic,
+      essayType: formData.value.essayType
+    }
+  })
+}
+
+// 复制题目
+const handleCopyTopic = () => {
+  if (!topicResult.value) return
+
+  const fullTopic = `题目描述：${topicResult.value.topic_description}\n写作要求：${topicResult.value.writing_requirements}`
+
+  navigator.clipboard.writeText(fullTopic).then(() => {
+    ElMessage.success('题目已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.error('复制失败，请手动复制')
+  })
+}
+
+// 重新生成
+const handleRegenerate = () => {
+  topicResult.value = null
+  handleGenerate()
+}
+
+// 获取难度对应的标签类型
+const getDifficultyType = (difficulty) => {
+  const types = {
+    '简单': 'success',
+    '中等': 'warning',
+    '困难': 'danger'
+  }
+  return types[difficulty] || 'info'
 }
 </script>
 
 <style scoped>
 .topic-page {
-  max-width: 1200px;
+  max-width: 900px;
   margin: 0 auto;
+  padding: 20px;
 }
 
-h2 {
-  margin-bottom: 20px;
-  color: #303133;
-}
-
-.topics-section {
+.topic-result {
   margin-top: 20px;
 }
 
-.topics-section h3 {
-  margin-bottom: 15px;
-  color: #303133;
+.topic-description,
+.writing-requirements {
+  line-height: 1.8;
+  white-space: pre-wrap;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
 }
 
-.topic-card {
-  margin-bottom: 15px;
-}
-
-.topic-card h4 {
-  margin: 10px 0;
-  color: #409eff;
-}
-
-.topic-card p {
-  margin: 8px 0;
-  line-height: 1.6;
+.result-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 </style>

@@ -2,24 +2,38 @@ import request from './request'
 
 export const correct = (data) => {
   return request({
-    url: '/correct',
+    url: '/essay/correct',
     method: 'post',
-    data
+    data: {
+      user_essay: data.userEssay,
+      essay_type: data.essayType,
+      topic: data.topic || null,
+      image_url: data.imageUrl || null,
+      is_heavily_edited: data.isHeavilyEdited || false
+    }
   })
 }
 
-export const getReference = (data) => {
+export const getReference = (topic, essayType) => {
   return request({
-    url: '/reference',
+    url: '/essay/reference',
     method: 'post',
-    data
+    data: {
+      topic,
+      essay_type: essayType
+    }
   })
 }
 
 export const reCorrect = (data) => {
   return request({
-    url: '/re-correct',
+    url: '/essay/re-correct',
     method: 'post',
-    data
+    data: {
+      record_id: data.recordId,
+      topic: data.topic || null,
+      user_essay: data.userEssay || null,
+      essay_type: data.essayType || null
+    }
   })
 }
