@@ -70,3 +70,8 @@ server:
   port: 8080
   servlet:
     context-path: /
+
+# Agent配置
+agent:
+  lock:
+    timeout-seconds: 90
