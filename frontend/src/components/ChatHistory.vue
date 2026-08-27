@@ -1,86 +1,97 @@
 <template>
-  <el-card class="chat-history-card" shadow="never">
+  <div class="chat-history-card">
+    <div class="chat-header">
+      <span>多轮对话历史</span>
+      <el-button
+        size="small"
+        type="danger"
+        @click="handleClearContext"
+        :icon="Delete"
+      >
+        清空上下文
+      </el-button>
+    </div>
+
     <div class="chat-container" ref="chatContainer">
       <div
         v-for="(message, index) in messages"
         :key="index"
         :class="['message', message.type]"
       >
-        <div class="message-header">
-          <span class="message-role">
-            <el-icon v-if="message.type === 'user'"><User /></el-icon>
-            <el-icon v-else-if="message.type === 'assistant'"><ChatDotRound /></el-icon>
-            <el-icon v-else><Bell /></el-icon>
-            {{ message.role === 'user' ? '学生' : message.role === 'assistant' ? '批改系统' : '系统' }}
-          </span>
-          <span class="message-time">{{ message.time }}</span>
+        <!-- 用户消息（靠右） -->
+        <div v-if="message.type === 'user'" class="user-message">
+          <div class="message-bubble user-bubble">
+            <div class="message-meta">
+              <el-tag size="small" type="primary" class="essay-type-tag">
+                {{ getEssayTypeLabel(message.essayType) }}
+              </el-tag>
+              <span class="message-time">{{ message.time }}</span>
+            </div>
+            <div class="message-content">
+              <div class="essay-summary">
+                {{ getEssaySummary(message.content) }}
+              </div>
+              <div class="essay-full" v-if="expandedMessages.has(index)">
+                {{ message.content }}
+              </div>
+              <el-button
+                v-if="message.content.length > 50"
+                size="small"
+                text
+                type="primary"
+                @click="toggleExpand(index)"
+              >
+                {{ expandedMessages.has(index) ? '收起' : '展开全文' }}
+              </el-button>
+            </div>
+          </div>
         </div>
 
-        <div class="message-content">
-          <!-- 用户消息：显示作文内容 -->
-          <div v-if="message.type === 'user'" class="user-essay">
-            <div class="essay-type-tag">
-              <el-tag size="small" type="primary">{{ getEssayTypeLabel(message.essayType) }}</el-tag>
-            </div>
-            <div class="essay-text">{{ message.content }}</div>
-          </div>
-
-          <!-- 助手消息：显示批改结果 -->
-          <div v-else-if="message.type === 'assistant'" class="assistant-response">
-            <div v-if="message.result" class="result-summary">
-              <div class="score-badge">
-                <span class="score-label">得分</span>
-                <span class="score-value">{{ message.result.total_score }}</span>
-              </div>
-              <div class="meta-info">
-                <el-tag v-if="message.meta?.template_version" size="small" type="info">
-                  模板 v{{ message.meta.template_version }}
-                </el-tag>
-                <el-tag v-if="message.meta?.summary_degraded" size="small" type="warning">
-                  降级
+        <!-- Agent消息（靠左） -->
+        <div v-else-if="message.type === 'assistant'" class="assistant-message">
+          <div class="message-bubble assistant-bubble">
+            <div class="message-meta">
+              <div class="score-info" v-if="message.result">
+                <span class="score-badge">得分：{{ message.result.total_score }}</span>
+                <el-tag v-if="message.meta?.template_version" size="small" type="info" style="margin-left: 8px;">
+                  v{{ message.meta.template_version }}
                 </el-tag>
               </div>
+              <span class="message-time">{{ message.time }}</span>
             </div>
-            <div class="response-text">{{ message.content }}</div>
-          </div>
-
-          <!-- 系统消息 -->
-          <div v-else-if="message.type === 'system'" class="system-message">
-            <el-alert :type="getSystemMessageType(message.content)" :closable="false">
+            <div class="message-content">
               {{ message.content }}
-            </el-alert>
+            </div>
+            <div class="message-actions">
+              <el-button
+                size="small"
+                type="primary"
+                @click="handleViewResult(index)"
+                :icon="View"
+              >
+                查看完整结果
+              </el-button>
+            </div>
           </div>
+        </div>
+
+        <!-- 系统消息（居中） -->
+        <div v-else-if="message.type === 'system'" class="system-message">
+          <el-alert :type="getSystemMessageType(message.content)" :closable="false">
+            {{ message.content }}
+          </el-alert>
         </div>
       </div>
 
-      <el-empty v-if="messages.length === 0" description="暂无对话记录" :image-size="100" />
+      <el-empty v-if="messages.length === 0" description="暂无对话记录" :image-size="80" />
     </div>
-
-    <div class="chat-actions">
-      <el-button
-        @click="handleExport"
-        :disabled="messages.length === 0"
-        :icon="Download"
-        size="small"
-      >
-        导出对话
-      </el-button>
-      <el-button
-        @click="handleClear"
-        :disabled="messages.length === 0"
-        type="danger"
-        :icon="Delete"
-        size="small"
-      >
-        清空历史
-      </el-button>
-    </div>
-  </el-card>
+  </div>
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
-import { User, ChatDotRound, Bell, Download, Delete } from '@element-plus/icons-vue'
+import { ref, computed, nextTick, watch } from 'vue'
+import { Delete, View } from '@element-plus/icons-vue'
+import { clearContext } from '@/api/session'
 
 const props = defineProps({
   messages: {
@@ -89,9 +100,10 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['clear', 'export'])
+const emit = defineEmits(['clear', 'view-result'])
 
 const chatContainer = ref(null)
+const expandedMessages = ref(new Set())
 
 // 监听消息变化，自动滚动到底部
 watch(() => props.messages.length, () => {
@@ -117,6 +129,23 @@ const getEssayTypeLabel = (type) => {
   return labels[type] || type
 }
 
+// 获取作文摘要（前50字）
+const getEssaySummary = (content) => {
+  if (!content) return ''
+  if (content.length <= 50) return content
+  return content.substring(0, 50) + '...'
+}
+
+// 切换展开/收起
+const toggleExpand = (index) => {
+  if (expandedMessages.value.has(index)) {
+    expandedMessages.value.delete(index)
+  } else {
+    expandedMessages.value.add(index)
+  }
+  expandedMessages.value = new Set(expandedMessages.value)
+}
+
 // 获取系统消息类型
 const getSystemMessageType = (content) => {
   if (content.includes('失败') || content.includes('错误')) {
@@ -128,40 +157,31 @@ const getSystemMessageType = (content) => {
   }
 }
 
-// 清空历史
-const handleClear = () => {
-  ElMessageBox.confirm('确定要清空对话历史吗？此操作不可恢复。', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    emit('clear')
-    ElMessage.success('对话历史已清空')
-  }).catch(() => {})
+// 查看完整结果
+const handleViewResult = (index) => {
+  emit('view-result', props.messages[index])
 }
 
-// 导出对话
-const handleExport = () => {
-  const exportData = props.messages.map(msg => ({
-    role: msg.role,
-    time: msg.time,
-    type: msg.type,
-    content: msg.content,
-    essayType: msg.essayType,
-    result: msg.result,
-    meta: msg.meta
-  }))
-
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `chat-history-${Date.now()}.json`
-  link.click()
-  URL.revokeObjectURL(url)
-
-  ElMessage.success('对话历史已导出')
-  emit('export', exportData)
+// 清空上下文
+const handleClearContext = async () => {
+  ElMessageBox.confirm(
+    '确定要清空当前会话的上下文吗？这会清除对话历史和词汇表，但不影响已保存的历史记录。',
+    '清空上下文',
+    {
+      confirmButtonText: '确定清空',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await clearContext()
+      emit('clear')
+      ElMessage.success('上下文已清空')
+    } catch (error) {
+      console.error('清空上下文失败', error)
+      ElMessage.error('清空上下文失败: ' + (error.message || '未知错误'))
+    }
+  }).catch(() => {})
 }
 </script>
 
@@ -169,9 +189,19 @@ const handleExport = () => {
 .chat-history-card {
   border: 1px solid #e4e7ed;
   border-radius: 8px;
-  max-height: 600px;
+  height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #e4e7ed;
+  background-color: #f5f7fa;
+  border-radius: 8px 8px 0 0;
 }
 
 .chat-container {
@@ -179,125 +209,115 @@ const handleExport = () => {
   overflow-y: auto;
   padding: 15px;
   max-height: 500px;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f7fa 100%);
 }
 
 .message {
-  margin-bottom: 20px;
-  padding: 15px;
-  border-radius: 8px;
-  transition: all 0.3s;
+  margin-bottom: 15px;
 }
 
-.message.user {
-  background: linear-gradient(135deg, #e8f3ff 0%, #f0f9ff 100%);
-  margin-left: 30px;
-  border-left: 3px solid #409eff;
+/* 用户消息靠右 */
+.user-message {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.message.assistant {
-  background: linear-gradient(135deg, #f0f9ff 0%, #f5f7fa 100%);
-  margin-right: 30px;
-  border-left: 3px solid #67c23a;
+.user-bubble {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  color: white;
+  max-width: 70%;
+  border-radius: 18px 18px 4px 18px;
 }
 
-.message.system {
-  background-color: #fef0f0;
-  border-radius: 6px;
+/* Agent消息靠左 */
+.assistant-message {
+  display: flex;
+  justify-content: flex-start;
 }
 
-.message-header {
+.assistant-bubble {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e1f3ff 100%);
+  color: #303133;
+  max-width: 70%;
+  border-radius: 18px 18px 18px 4px;
+  border: 1px solid #b3d8ff;
+}
+
+/* 系统消息居中 */
+.system-message {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.message-bubble {
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-meta {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: #909399;
-}
-
-.message-role {
-  font-weight: bold;
-  display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.message.user .message-role {
-  color: #409eff;
-}
-
-.message.assistant .message-role {
-  color: #67c23a;
-}
-
-.message.system .message-role {
-  color: #f56c6c;
-}
-
-.user-essay .essay-type-tag {
   margin-bottom: 8px;
+  font-size: 12px;
 }
 
-.essay-text {
-  padding: 12px;
-  background-color: rgba(255, 255, 255, 0.6);
-  border-radius: 4px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  color: #303133;
-}
-
-.assistant-response .result-summary {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 10px;
-  padding: 10px;
-  background: linear-gradient(135deg, #67c23a 0%, #5daf34 100%);
-  border-radius: 6px;
-  color: white;
-}
-
-.score-badge {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-.score-label {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.score-value {
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.meta-info {
-  display: flex;
-  gap: 5px;
-}
-
-.meta-info .el-tag {
+.essay-type-tag {
   background-color: rgba(255, 255, 255, 0.2);
   border-color: transparent;
   color: white;
 }
 
-.response-text {
-  padding: 12px;
-  background-color: rgba(255, 255, 255, 0.6);
-  border-radius: 4px;
-  line-height: 1.6;
-  color: #303133;
+.score-info {
+  display: flex;
+  align-items: center;
 }
 
-.chat-actions {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #e4e7ed;
+.score-badge {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: bold;
+}
+
+.message-time {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.message-content {
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.essay-summary {
+  font-size: 14px;
+}
+
+.essay-full {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.message-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
-  gap: 10px;
+}
+
+.message-actions :deep(.el-button) {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: transparent;
+}
+
+.message-actions :deep(.el-button:hover) {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 /* 自定义滚动条样式 */

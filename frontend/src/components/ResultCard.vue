@@ -1,5 +1,16 @@
 <template>
   <el-card class="result-card" shadow="never">
+    <!-- 降级结果警告 -->
+    <el-alert
+      v-if="result.degraded"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 20px;"
+    >
+      本次为降级结果，格式解析失败，仅供参考
+    </el-alert>
+
     <div class="score-header">
       <div class="total-score">
         <span class="score-label">总分</span>
@@ -8,50 +19,46 @@
         </span>
         <span class="score-unit">/ {{ getMaxScore() }}</span>
       </div>
-      <el-tag v-if="result.degraded" type="warning" size="small">
-        降级结果
-      </el-tag>
     </div>
 
     <!-- 分项得分 -->
     <div v-if="result.breakdown" class="breakdown-section">
       <h4>分项得分</h4>
-      <el-row :gutter="12">
-        <el-col
-          :span="6"
-          v-for="(score, key) in result.breakdown"
-          :key="key"
-        >
-          <div class="score-item">
+      <el-space direction="vertical" :size="12" style="width: 100%;">
+        <div v-for="(score, key) in result.breakdown" :key="key" class="score-breakdown-item">
+          <div class="score-breakdown-header">
             <span class="score-label">{{ getScoreLabel(key) }}</span>
-            <span class="score-value">{{ score }}</span>
-            <span class="score-unit">/ 5</span>
+            <span class="score-value">{{ score }} / 5</span>
           </div>
-        </el-col>
-      </el-row>
+          <el-progress :percentage="(score / 5) * 100" :color="getProgressColor(score)" />
+        </div>
+      </el-space>
     </div>
 
     <!-- 错误标注 -->
     <div v-if="result.errors && result.errors.length > 0" class="errors-section">
       <h4>错误标注（{{ result.errors.length }}处）</h4>
-      <el-collapse accordion>
-        <el-collapse-item
-          v-for="(error, index) in result.errors"
-          :key="index"
-          :title="`${index + 1}. ${error.original}`"
-        >
-          <div class="error-item">
-            <el-tag :type="getErrorType(error.type)" size="small" class="error-type-tag">
-              {{ error.type }}
+      <el-table :data="result.errors" stripe border style="width: 100%">
+        <el-table-column type="index" label="#" width="50" />
+        <el-table-column prop="original" label="原文" min-width="150">
+          <template #default="scope">
+            <span class="error-text">{{ scope.row.original }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="corrected" label="修改后" min-width="150">
+          <template #default="scope">
+            <span class="corrected-text">{{ scope.row.corrected }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="reason" label="错误原因" min-width="200" />
+        <el-table-column prop="type" label="类型" width="100">
+          <template #default="scope">
+            <el-tag :type="getErrorType(scope.row.type)" size="small">
+              {{ scope.row.type }}
             </el-tag>
-            <div class="error-detail">
-              <p><strong>原文：</strong><span class="error-text">{{ error.original }}</span></p>
-              <p><strong>修改：</strong><span class="corrected-text">{{ error.corrected }}</span></p>
-              <p><strong>原因：</strong>{{ error.reason }}</p>
-            </div>
-          </div>
-        </el-collapse-item>
-      </el-collapse>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
 
     <!-- 整体建议 -->
@@ -145,6 +152,14 @@ const getErrorType = (type) => {
   return types[type] || 'info'
 }
 
+// 获取进度条颜色
+const getProgressColor = (score) => {
+  if (score >= 4) return '#67c23a'
+  if (score >= 3) return '#e6a23c'
+  if (score >= 2) return '#f56c6c'
+  return '#ff4d4f'
+}
+
 // 复制润色全文
 const handleCopyPolished = () => {
   if (!props.result.polished_essay) return
@@ -225,57 +240,22 @@ h4 {
   font-size: 16px;
 }
 
-.score-item {
+.score-breakdown-item {
   background-color: #f5f7fa;
-  padding: 15px;
+  padding: 12px;
   border-radius: 6px;
-  text-align: center;
-  transition: all 0.3s;
 }
 
-.score-item:hover {
-  background-color: #e8f3ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
-}
-
-.score-label {
-  display: block;
-  font-size: 13px;
-  color: #606266;
+.score-breakdown-header {
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 8px;
-}
-
-.score-value {
-  display: block;
-  font-size: 28px;
-  font-weight: bold;
-  color: #409eff;
-}
-
-.score-unit {
-  display: block;
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
-}
-
-.error-item {
-  padding: 10px;
-}
-
-.error-type-tag {
-  margin-bottom: 10px;
-}
-
-.error-detail p {
-  margin: 8px 0;
-  line-height: 1.6;
 }
 
 .error-text {
   color: #f56c6c;
   text-decoration: line-through;
+  font-weight: 500;
 }
 
 .corrected-text {

@@ -95,64 +95,65 @@
             </div>
           </template>
 
-          <div v-if="!result" class="empty-result">
-            <el-empty description="提交作文后将显示批改结果">
-              <el-icon :size="60"><Document /></el-icon>
-            </el-empty>
-          </div>
+          <el-tabs v-model="resultTab" type="card">
+            <!-- 当前结果Tab -->
+            <el-tab-pane label="当前结果" name="current">
+              <div v-if="!result" class="empty-result">
+                <el-empty description="提交作文后将显示批改结果">
+                  <el-icon :size="60"><Document /></el-icon>
+                </el-empty>
+              </div>
 
-          <div v-else class="result-content">
-            <ResultCard :result="result" />
+              <div v-else class="result-content">
+                <ResultCard :result="result" />
 
-            <!-- 重新批改按钮 -->
-            <div class="result-actions">
-              <el-button
-                type="warning"
-                @click="handleReCorrect"
-                :loading="reCorrectLoading"
-                :disabled="!lastRecordId"
-              >
-                重新批改
-              </el-button>
-              <el-button @click="handleExport">
-                导出结果
-              </el-button>
-            </div>
+                <!-- 重新批改按钮 -->
+                <div class="result-actions">
+                  <el-button
+                    type="warning"
+                    @click="handleReCorrect"
+                    :loading="reCorrectLoading"
+                    :disabled="!lastRecordId"
+                  >
+                    重新批改
+                  </el-button>
+                  <el-button type="primary" @click="handleExport">
+                    导出报告
+                  </el-button>
+                </div>
 
-            <!-- Meta信息展示 -->
-            <el-divider />
-            <div v-if="currentMeta" class="meta-info">
-              <el-descriptions :column="1" size="small" border>
-                <el-descriptions-item label="模板ID">
-                  {{ currentMeta.template_id || 'N/A' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="模板版本">
-                  {{ currentMeta.template_version || 'N/A' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="摘要降级">
-                  <el-tag :type="currentMeta.summary_degraded ? 'warning' : 'success'" size="small">
-                    {{ currentMeta.summary_degraded ? '是' : '否' }}
-                  </el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="迭代轮次">
-                  {{ currentMeta.iteration_count || 0 }}
-                </el-descriptions-item>
-              </el-descriptions>
-            </div>
-          </div>
-        </el-card>
+                <!-- Meta信息展示 -->
+                <el-divider />
+                <div v-if="currentMeta" class="meta-info">
+                  <el-descriptions :column="1" size="small" border>
+                    <el-descriptions-item label="模板ID">
+                      {{ currentMeta.template_id || 'N/A' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="模板版本">
+                      {{ currentMeta.template_version || 'N/A' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="摘要降级">
+                      <el-tag :type="currentMeta.summary_degraded ? 'warning' : 'success'" size="small">
+                        {{ currentMeta.summary_degraded ? '是' : '否' }}
+                      </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="迭代轮次">
+                      {{ currentMeta.iteration_count || 0 }}
+                    </el-descriptions-item>
+                  </el-descriptions>
+                </div>
+              </div>
+            </el-tab-pane>
 
-        <!-- 对话历史 -->
-        <el-card shadow="hover" style="margin-top: 20px;">
-          <template #header>
-            <div class="card-header">
-              <span>对话历史</span>
-              <el-button size="small" type="danger" @click="handleClearChat">
-                清空历史
-              </el-button>
-            </div>
-          </template>
-          <ChatHistory :messages="chatStore.messages" />
+            <!-- 对话历史Tab -->
+            <el-tab-pane label="对话历史" name="history">
+              <ChatHistory
+                :messages="chatStore.messages"
+                @view-result="handleViewResult"
+                @clear="handleClearChat"
+              />
+            </el-tab-pane>
+          </el-tabs>
         </el-card>
       </el-col>
     </el-row>
@@ -164,6 +165,8 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { correct } from '@/api/essay'
 import { useChatStore } from '@/stores/chat'
+import { sanitizeMarkdown } from '@/api/report'
+import { generateMarkdownReport, downloadMarkdownReport, generateReportFilename } from '@/utils/reportGenerator'
 import ResultCard from '@/components/ResultCard.vue'
 import OcrUpload from '@/components/OcrUpload.vue'
 import ChatHistory from '@/components/ChatHistory.vue'
@@ -175,6 +178,7 @@ const chatStore = useChatStore()
 const loading = ref(false)
 const reCorrectLoading = ref(false)
 const inputMode = ref('text')
+const resultTab = ref('current') // 结果Tab切换
 const formData = ref({
   essayType: 'EN1_PICTURE',
   topic: '',
@@ -314,24 +318,24 @@ const handleReCorrect = async () => {
 const handleExport = () => {
   if (!result.value) return
 
-  const exportData = {
-    topic: formData.value.topic,
-    essayType: formData.value.essayType,
-    userEssay: formData.value.userEssay,
-    result: result.value,
-    meta: currentMeta.value,
-    timestamp: new Date().toISOString()
-  }
+  // 生成Markdown报告
+  const markdown = generateMarkdownReport(
+    result.value,
+    formData.value.topic,
+    formData.value.userEssay,
+    formData.value.essayType
+  )
 
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `essay-result-${Date.now()}.json`
-  link.click()
-  URL.revokeObjectURL(url)
+  // 净化Markdown文本
+  const sanitizedMarkdown = sanitizeMarkdown(markdown)
 
-  ElMessage.success('结果已导出')
+  // 生成带时间戳的文件名
+  const filename = generateReportFilename()
+
+  // 下载Markdown报告
+  downloadMarkdownReport(sanitizedMarkdown, filename)
+
+  ElMessage.success('报告已导出')
 }
 
 // 清空对话历史
@@ -347,6 +351,15 @@ const handleClearChat = () => {
     lastRecordId.value = null
     ElMessage.success('对话历史已清空')
   }).catch(() => {})
+}
+
+// 查看历史结果
+const handleViewResult = (message) => {
+  if (message.result) {
+    result.value = message.result
+    currentMeta.value = message.meta || null
+    resultTab.value = 'current'
+  }
 }
 </script>
 
