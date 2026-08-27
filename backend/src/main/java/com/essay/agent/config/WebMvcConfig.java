@@ -27,14 +27,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
     );
 
     private static final List<String> EXCLUDE_PATHS = Arrays.asList(
-        "/api/health"
+        "/api/health",
+        "/api/session"
     );
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(sessionInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/health");
+                .excludePathPatterns("/api/health", "/api/session", "/api/session/**");
 
         registry.addInterceptor(concurrentLockInterceptor)
                 .order(2)

@@ -15,7 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class ThreadPoolConfig {
 
     @Bean("summaryThreadPool")
-    public Executor summaryThreadPool() {
+    public ThreadPoolTaskExecutor summaryThreadPool() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(4);

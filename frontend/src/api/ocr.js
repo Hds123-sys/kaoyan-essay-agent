@@ -10,6 +10,7 @@ export const upload = (file) => {
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 60000 // OCR需要更长时间
   })
 }

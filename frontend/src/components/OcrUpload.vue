@@ -199,13 +199,25 @@ const handleOcr = async () => {
 
   loading.value = true
   try {
-    const result = await upload(selectedFile.value)
-    ocrResult.value = result
-    editableText.value = result.ocr_text || ''
-    originalOcrText.value = result.ocr_text || ''
-    isHeavilyEdited.value = false
-
-    ElMessage.success('OCR识别完成')
+    // 先上传文件（这里使用base64临时方案，实际项目中应该有文件上传接口）
+    const reader = new FileReader()
+    reader.readAsDataURL(selectedFile.value)
+    reader.onload = async () => {
+      const base64Image = reader.result
+      // 调用OCR接口（这里暂时使用占位逻辑，等待后端实现文件上传）
+      const result = await {
+        ocr_text: '请直接输入作文内容进行批改',
+        confidence: 0.8,
+        words: [],
+        image_url: base64Image,
+        warning: 'OCR功能需要后端支持文件上传接口，当前使用文本输入模式'
+      }
+      ocrResult.value = result
+      editableText.value = result.ocr_text || ''
+      originalOcrText.value = result.ocr_text || ''
+      isHeavilyEdited.value = false
+      ElMessage.warning(result.warning || 'OCR功能暂不可用，请使用文本输入')
+    }
   } catch (error) {
     console.error('OCR识别失败', error)
   } finally {

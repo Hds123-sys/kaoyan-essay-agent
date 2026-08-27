@@ -19,7 +19,7 @@ public class SessionService {
     private RedisUtil redisUtil;
 
     public SessionResponse createSession() {
-        String sessionId = UUID.randomUUID().toString().replace("-", "");
+        String sessionId = UUID.randomUUID().toString();
 
         // 保存会话信息
         String metaKey = RedisKeyConstants.buildSessionMetaKey(sessionId);

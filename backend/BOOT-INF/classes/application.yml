@@ -3,17 +3,14 @@ spring:
     name: essay-correction-agent
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/essay_agent?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/essay_agent?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: root
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
-      initialization-fail-timeout: -1
   sql:
     init:
-      mode: never
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
   data:
     redis:
       host: localhost
@@ -70,7 +67,7 @@ logging:
 
 # 服务器配置
 server:
-  port: 18080
+  port: 8080
   servlet:
     context-path: /
 
