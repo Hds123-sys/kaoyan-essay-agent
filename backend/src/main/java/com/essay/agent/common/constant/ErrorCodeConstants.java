@@ -3,6 +3,7 @@ package com.essay.agent.common.constant;
 public interface ErrorCodeConstants {
 
     int BAD_REQUEST = 400;
+    int NOT_FOUND = 404;
     int FORBIDDEN = 403;
     int TOO_MANY_REQUESTS = 429;
     int INTERNAL_ERROR = 500;

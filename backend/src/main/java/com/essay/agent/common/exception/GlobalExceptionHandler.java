@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -27,6 +28,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("Validation failed: {}", errorMsg);
         return ApiResponse.error(ErrorCodeConstants.BAD_REQUEST, errorMsg);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ApiResponse<Void> handleNoResourceFoundException(NoResourceFoundException e) {
+        log.warn("Resource not found: {}", e.getResourcePath());
+        return ApiResponse.error(ErrorCodeConstants.NOT_FOUND, "资源不存在");
     }
 
     @ExceptionHandler(Exception.class)
