@@ -157,7 +157,6 @@ const handleGenerate = async () => {
     ElMessage.success('范文生成成功')
   } catch (error) {
     console.error('生成范文失败', error)
-    ElMessage.error('生成范文失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -258,5 +257,23 @@ const handleRemoveHighlight = (index) => {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .reference-page {
+    padding: 10px;
+  }
+
+  .result-actions {
+    gap: 8px;
+  }
+
+  .result-actions .el-button {
+    width: 100%;
+  }
+
+  .essay-textarea :deep(textarea) {
+    font-size: 15px;
+  }
 }
 </style>

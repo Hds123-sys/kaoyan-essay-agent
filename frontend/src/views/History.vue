@@ -284,6 +284,8 @@ onMounted(() => {
   padding: 10px;
   background-color: #f5f7fa;
   border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
 }
 
 .result-section {
@@ -303,5 +305,30 @@ onMounted(() => {
   line-height: 1.6;
   max-height: 400px;
   overflow-y: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+@media (max-width: 768px) {
+  .history-page {
+    padding: 10px;
+  }
+
+  .pagination-wrapper {
+    justify-content: center;
+  }
+
+  .history-table {
+    font-size: 12px;
+  }
+
+  .hide-mobile {
+    display: none;
+  }
+
+  .detail-text,
+  .json-content {
+    font-size: 11px;
+    padding: 8px;
+  }
 }
 </style>

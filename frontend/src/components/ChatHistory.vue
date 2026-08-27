@@ -338,4 +338,27 @@ const handleClearContext = async () => {
 .chat-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 10px;
+  }
+
+  .user-bubble,
+  .assistant-bubble {
+    max-width: 85%;
+  }
+
+  .message-bubble {
+    padding: 10px 12px;
+  }
+
+  .essay-summary {
+    font-size: 13px;
+  }
+
+  .chat-container {
+    max-height: 400px;
+  }
+}
 </style>

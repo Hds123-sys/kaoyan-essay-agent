@@ -2,7 +2,7 @@
   <div class="correct-page">
     <el-row :gutter="20">
       <!-- 左侧：输入区 -->
-      <el-col :span="12" class="input-section">
+      <el-col :xs="24" :sm="24" :md="24" :lg="12" :xl="12" class="input-section">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -68,10 +68,10 @@
                 type="primary"
                 @click="handleSubmit"
                 :loading="loading"
-                :disabled="!canSubmit"
+                :disabled="!canSubmit || loading"
                 style="width: 100%;"
               >
-                {{ loading ? '批改中...' : '开始批改' }}
+                {{ loading ? loadingText : '开始批改' }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -79,7 +79,7 @@
       </el-col>
 
       <!-- 右侧：结果展示区 -->
-      <el-col :span="12" class="result-section">
+      <el-col :xs="24" :sm="24" :md="24" :lg="12" :xl="12" class="result-section">
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
@@ -113,9 +113,9 @@
                     type="warning"
                     @click="handleReCorrect"
                     :loading="reCorrectLoading"
-                    :disabled="!lastRecordId"
+                    :disabled="!lastRecordId || reCorrectLoading"
                   >
-                    重新批改
+                    {{ reCorrectLoading ? loadingText : '重新批改' }}
                   </el-button>
                   <el-button type="primary" @click="handleExport">
                     导出报告
@@ -206,6 +206,15 @@ const isWordCountExceed = computed(() => {
 const canSubmit = computed(() => {
   const text = formData.value.userEssay?.trim() || ''
   return text.length >= 10 && wordCount.value <= 800 && !isWordCountExceed.value
+})
+
+// 加载状态文本
+const loadingText = computed(() => {
+  if (!loading.value && !reCorrectLoading.value) return '开始批改'
+  if (currentMeta.value?.iteration_count >= 5) {
+    return '正在分析历史对话，可能需要更长时间...'
+  }
+  return '正在批改中...'
 })
 
 // 监听路由参数（从出题页面跳转过来时）
@@ -380,6 +389,21 @@ const handleViewResult = (message) => {
 .input-section,
 .result-section {
   height: 100%;
+}
+
+@media (max-width: 768px) {
+  .input-section,
+  .result-section {
+    margin-bottom: 20px;
+  }
+
+  .correct-page {
+    padding: 10px;
+  }
+
+  .el-form-item__label {
+    width: 100px !important;
+  }
 }
 
 .empty-result {

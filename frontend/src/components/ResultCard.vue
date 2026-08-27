@@ -289,4 +289,27 @@ h4 {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+@media (max-width: 768px) {
+  .score-header {
+    padding: 15px;
+  }
+
+  .total-score .score-value {
+    font-size: 32px;
+  }
+
+  .polished-content {
+    padding: 15px;
+    font-size: 14px;
+  }
+
+  .el-table {
+    font-size: 12px;
+  }
+
+  .score-breakdown-item {
+    padding: 10px;
+  }
+}
 </style>

@@ -20,8 +20,7 @@ app.use(router)
 app.use(ElementPlus)
 
 // 初始化 session store
-import { useSessionStore } from '@/stores/session'
-app.mount('#app')
-
 const sessionStore = useSessionStore()
 sessionStore.init()
+
+app.mount('#app')

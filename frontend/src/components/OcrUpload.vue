@@ -208,7 +208,6 @@ const handleOcr = async () => {
     ElMessage.success('OCR识别完成')
   } catch (error) {
     console.error('OCR识别失败', error)
-    ElMessage.error('OCR识别失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }

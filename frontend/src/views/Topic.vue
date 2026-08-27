@@ -99,7 +99,6 @@ const handleGenerate = async () => {
     ElMessage.success('题目生成成功')
   } catch (error) {
     console.error('生成题目失败', error)
-    ElMessage.error('生成题目失败: ' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -165,9 +164,10 @@ const getDifficultyType = (difficulty) => {
 .writing-requirements {
   line-height: 1.8;
   white-space: pre-wrap;
-  padding: 10px;
+  padding: 15px;
   background-color: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-family: inherit;
 }
 
 .result-actions {
@@ -175,5 +175,26 @@ const getDifficultyType = (difficulty) => {
   display: flex;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .topic-page {
+    padding: 10px;
+  }
+
+  .topic-description,
+  .writing-requirements {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .result-actions {
+    gap: 8px;
+  }
+
+  .result-actions .el-button {
+    width: 100%;
+  }
 }
 </style>
